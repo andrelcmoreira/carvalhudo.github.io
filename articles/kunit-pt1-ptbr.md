@@ -1,25 +1,25 @@
 **KUnit: Introdução ao framework de testes unitários do kernel Linux - parte 1**
 
-**Introdução (TLDR)**
+**Introdução**
 
-Em certa ocasião em 2020, trabalhei em um projeto de software que se tratava de um módulo
-de segurança que rodava em kernel land, escrito em C. Até aí nenhuma novidade. Durante o
-período de desenvolvimento, tivemos um pedido bem específico do nosso cliente: escrever
-testes unitários para esta aplicação. Esta demanda nos soou como algo impossível de ser realizado,
-já que testes de unidade não estavam presentes no processo de desenvolvimento do kernel Linux
-e tampouco era um assunto fortemente presente/discutido na comunidade. Porém essa realidade
-já havia mudado em meados de 2019, sem que tomassemos conhecimento. Pouco tempo depois lembrei
-de um [artigo](https://sergioprado.org/como-o-kernel-linux-e-testado/) bem interessante do
-Sérgio Prado que falava sobre ferramentas de teste utilizadas no desenvolvimento do Linux e lá ele
-citava um framework de testes unitários relativamente novo na comunidade, chamado *KUnit*.
-Era exatamente o que precisavamos.
+Em certa ocasião em 2020, trabalhei em um projeto que se tratava de um módulo de segurança que
+rodava em *kernel-land*, escrito em C. Até aí nenhuma novidade. Porém ele tinha um requisito bem
+peculiar: deveria haver uma cobertura mínima de testes unitários para a aplicação. Nada demais para
+aplicações em *user-land*, certo?No entanto em *kernel-land* a realidade é bem diferente, já que
+não existem ferramentas disponíveis para a realização deste tipo de teste. Porém essa realidade já
+havia mudado em meados de 2019, sem que nós tivessemos tomado conhecimento. Depois de alguma pesquisa,
+me deparei com um [artigo](https://sergioprado.org/como-o-kernel-linux-e-testado/) bem interessante
+do Sérgio Prado que falava sobre ferramentas de teste utilizadas no desenvolvimento do Linux e lá ele
+citava um framework de testes unitários relativamente novo na comunidade, chamado *KUnit*. Era
+exatamente o que precisavamos.
 
 Idealizado por Brendan Higgins, Engenheiro de software do Google, o *KUnit* é um framework
-de testes unitários fortemente baseado no GTest/GMock (também do Google) que veio para
-preencher uma lacuna existente no processo de desenvolvimento do Linux: ter a capacidade de se
-testar pequenas unidades do código de maneira rápida e isolada. Neste artigo irei abordar
-de maneira introdutória o uso do KUnit na realização de testes unitários em módulos de kernel,
-cobrindo desde o setup do ambiente até a criação de testes suites de teste.
+de testes unitários fortemente baseado no GTest/GMock (também do Google) que - ainda que não
+amplamente utilizado - veio para preencher uma lacuna existente no processo de desenvolvimento do
+Linux: ter a capacidade de se testar pequenas unidades do código de maneira rápida e isolada. A
+idéia do artigo é compartilhar um pouco da experiência que tive com essa ferramenta e nesta
+primeira parte do artigo irei abordar de maneira introdutória o uso do KUnit, cobrindo o setup do
+ambiente e a criação de uma suíte de testes simples.
 
 **Arquitetura**
 
@@ -35,7 +35,7 @@ $ git clone https://kunit.googlesource.com/linux --branch kunit/release/4.19/0.7
 
 ### Creating a test module
 
-Before we start writing the test module itself, we must have a module to be tested. Let's take [this module](https://github.hpe.com/andrac-moreira/kunit-example/blob/master/dime.c) as example. Basically its only work is to emulate the functionalities of a security module, which checks the sanity of a well-defined user process and issue an alarm if such process was tampered by a malicious user (take a look at the file for more details). The module was implemented taking in mind the OO programming concept, as suggested in the [framework documentation](https://kunit.dev/third_party/stable_kernel/docs/usage.html), which is recommended in order to take the maximum of the KUnit's capabilities. A simple test module has the following format:
+Before we start writing the test module itself, we must have a module to be tested. Let's take [this module](some_link_here) as example. Basically its only work is to emulate the functionalities of a security module, which checks the sanity of a well-defined user process and issue an alarm if such process was tampered by a malicious user (take a look at the file for more details). The module was implemented taking in mind the OO programming concept, as suggested in the [framework documentation](https://kunit.dev/third_party/stable_kernel/docs/usage.html), which is recommended in order to take the maximum of the KUnit's capabilities. A simple test module has the following format:
 
 ```c
 #include <test/test.h>
@@ -69,7 +69,7 @@ static struct test_module module_test_suite = {
 module_test(module_test_suite);
 ```
 
-In our case, the implementation of the test module targeted for our example is available [here](https://github.hpe.com/andrac-moreira/kunit-example/blob/master/dime_test.c). Let's take a look at some parts of it in detail:
+In our case, the implementation of the test module targeted for our example is available [here](some_link_here). Let's take a look at some parts of it in detail:
 
 ```c
 #include <test/mock.h>
@@ -191,7 +191,7 @@ The first step to run the test module is to make it "compilable" in the Linux co
 ```bash
 $ cd $LINUX_ROOT_DIR
 $ mkdir drivers/dime && cd $_
-$ git clone git@github.hpe.com:andrac-moreira/kunit-example.git
+$ git clone some_link_here
 ```
 
 Now we must to add the entry related to our module into the **drivers** Makefile and Kconfig. For that apply the patches below:
