@@ -3,15 +3,16 @@
 **Introdução**
 
 Em certa ocasião em 2020, trabalhei em um projeto que se tratava de um módulo de segurança que
-rodava em *kernel-land*, escrito em C. Até aí nenhuma novidade. Porém ele tinha um requisito bem
-peculiar: deveria haver uma cobertura mínima de testes unitários para a aplicação. Nada demais para
-aplicações em *user-land*, certo?No entanto em *kernel-land* a realidade é bem diferente, já que
-não existem ferramentas disponíveis para a realização deste tipo de teste. Porém essa realidade já
-havia mudado em meados de 2019, sem que nós tivessemos tomado conhecimento. Depois de alguma pesquisa,
-me deparei com um [artigo](https://sergioprado.org/como-o-kernel-linux-e-testado/) bem interessante
-do Sérgio Prado que falava sobre ferramentas de teste utilizadas no desenvolvimento do Linux e lá ele
-citava um framework de testes unitários relativamente novo na comunidade, chamado *KUnit*. Era
-exatamente o que precisavamos.
+rodava em *kernel land*, escrito em C. Até aí nenhuma novidade. No entanto, ele tinha um requisito
+bem peculiar: deveria ser coberto por testes unitários. Nada demais para aplicações em *user land*,
+certo?Porém em *kernel land* a realidade é bem diferente. O Linux até dispõe de ferramentas de teste,
+como o *kselftest* (framework para testes funcionais), no entanto, ferramentas de teste unitário ainda
+era uma lacuna a ser preenchida. Porém, essa realidade já havia mudado em meados de 2019, sem que eu
+tivesse tomado conhecimento. Depois de alguma pesquisa, me deparei com um
+[artigo](https://sergioprado.org/como-o-kernel-linux-e-testado/) bem interessante do Sérgio Prado que
+falava sobre ferramentas de teste utilizadas no desenvolvimento do Linux e lá ele citava um framework
+de testes unitários relativamente novo na comunidade, chamado *KUnit*. Era exatamente o que estava
+procurando.
 
 Idealizado por Brendan Higgins, Engenheiro de software do Google, o *KUnit* é um framework
 de testes unitários fortemente baseado no GTest/GMock (também do Google) que - ainda que não
@@ -27,10 +28,23 @@ TODO
 
 **Preparando o ambiente**
 
-Since KUnit framework isn't a standalone tool, you must obtain the Linux tree in order to use it. This guide is based on Linux tree hosted by Google, which contains several functionalities that are not merged into the Linux mainline yet. So the first step here is to clone the Linux hosted on google repository, as shown below:
+Um ponto importante a ser ressaltado é que o *KUnit* não é um framework standalone. Ele está
+embutido na árvore do Linux, logo precisamos dela localmente:
 
 ```bash
 $ git clone https://kunit.googlesource.com/linux --branch kunit/release/4.19/0.7
+```
+
+> **NOTA**: Neste artigo iremos utilizar como base a última release do KUnit que está disponível no
+> fork do Linux mantido pelo Google. Isso porque, até o momento que escrevo este artigo, o KUnit
+> se encontra parcialmente integrado na mainline do Linux. Sendo assim algumas funcionalidades que
+> iremos exemplificar aqui ainda não foram mergeadas.
+
+Juntamente com a árvore localmente na nossa máquina, precisamos instalar as dependências
+necessárias:
+
+```bash
+$ apt install flex bison ...
 ```
 
 ### Creating a test module
