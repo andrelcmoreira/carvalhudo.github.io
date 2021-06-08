@@ -1,4 +1,4 @@
-**KUnit: Introdução ao framework de testes unitários do kernel Linux - parte 1**
+#### KUnit: Introdução ao framework de testes unitários do kernel Linux - parte 1
 
 **Introdução**
 
@@ -6,50 +6,87 @@ Em certa ocasião em 2020, trabalhei em um projeto que se tratava de um módulo 
 rodava em *kernel land*, escrito em C. Até aí nenhuma novidade. No entanto, ele tinha um requisito
 bem peculiar: deveria ser coberto por testes unitários. Nada demais para aplicações em *user land*,
 certo?Porém em *kernel land* a realidade é bem diferente. O Linux até dispõe de ferramentas de teste,
-como o *kselftest* (framework para testes funcionais), no entanto, ferramentas de teste unitário ainda
-era uma lacuna a ser preenchida. Porém, essa realidade já havia mudado em meados de 2019, sem que eu
-tivesse tomado conhecimento. Depois de alguma pesquisa, me deparei com um
+como o *kselftest* (framework para testes funcionais) e entre outras, no entanto, ferramentas de
+teste unitário ainda era uma lacuna a ser preenchida. Porém, essa realidade já havia mudado em meados
+de 2019, sem que eu tivesse tomado conhecimento. Depois de alguma pesquisa, me deparei com um
 [artigo](https://sergioprado.org/como-o-kernel-linux-e-testado/) bem interessante do Sérgio Prado que
 falava sobre ferramentas de teste utilizadas no desenvolvimento do Linux e lá ele citava um framework
-de testes unitários relativamente novo na comunidade, chamado *KUnit*. Era exatamente o que estava
-procurando.
+de testes unitários relativamente novo na comunidade, chamado *KUnit*. Era exatamente o que eu
+precisava.
 
 Idealizado por Brendan Higgins, Engenheiro de software do Google, o *KUnit* é um framework
 de testes unitários fortemente baseado no GTest/GMock (também do Google) que - ainda que não
 amplamente utilizado - veio para preencher uma lacuna existente no processo de desenvolvimento do
 Linux: ter a capacidade de se testar pequenas unidades do código de maneira rápida e isolada. A
 idéia do artigo é compartilhar um pouco da experiência que tive com essa ferramenta e nesta
-primeira parte do artigo irei abordar de maneira introdutória o uso do KUnit, cobrindo o setup do
-ambiente e a criação de uma suíte de testes simples.
-
-**Arquitetura**
-
-TODO
+primeira parte, irei abordar de maneira introdutória o uso do KUnit, cobrindo conceitos básicos
+como o setup do ambiente e a criação de uma suíte de testes simples.
 
 **Preparando o ambiente**
 
 Um ponto importante a ser ressaltado é que o *KUnit* não é um framework standalone. Ele está
-embutido na árvore do Linux, logo precisamos dela localmente:
+embutido na árvore do Linux, logo precisamos clonar o repositório:
 
 ```bash
 $ git clone https://kunit.googlesource.com/linux --branch kunit/release/4.19/0.7
 ```
 
 > **NOTA**: Neste artigo iremos utilizar como base a última release do KUnit que está disponível no
-> fork do Linux mantido pelo Google. Isso porque, até o momento que escrevo este artigo, o KUnit
-> se encontra parcialmente integrado na mainline do Linux. Sendo assim algumas funcionalidades que
-> iremos exemplificar aqui ainda não foram mergeadas.
+> fork do Linux mantido pelo Google. Isso porque, até o momento que escrevo este artigo, o Linux
+> contém apenas o suporte básico do KUnit, logo algumas funcionalidades que iremos exemplificar
+> aqui ainda não foram mergeadas na árvore principal do projeto.
 
-Juntamente com a árvore localmente na nossa máquina, precisamos instalar as dependências
-necessárias:
+Além do repositório, também iremos precisar instalar alguns pacotes adicionais para compilar o
+Linux para a arquitetura UML (User Mode Linux), a qual é a arquitetura base do KUnit:
 
 ```bash
-$ apt install flex bison ...
+$ sudo apt install bc flex bison python3 build-essential -y
 ```
 
-### Creating a test module
+**Criando um módulo de teste**
 
-Before we start writing the test module itself, we must have a module to be tested. Let's take [this module](some_link_here) as example. Basically its only work is to emulate the functionalities of a security module, which checks the sanity of a well-defined user process and issue an alarm if such process was tampered by a malicious user (take a look at the file for more details). The module was implemented taking in mind the OO programming concept, as suggested in the [framework documentation](https://kunit.dev/third_party/stable_kernel/docs/usage.html), which is recommended in order to take the maximum of the KUnit's capabilities. A simple test module has the following format:
+Antes de nós começarmos a escrever um módulo de testes, obviamente nós devemos ter um módulo a ser
+testado. Vamos considerar [este módulo]() extremamente simples como exemplo. Ele contém apenas a
+implementação das operações básicas da matématicas, em outras palavras: uma simples calculadora em
+*kernel land*:
+
+```c
+#include <linux/module.h>
+
+int add(int n1, int n2)
+{
+    return n1 + n2;
+}
+
+int sub(int n1, int n2)
+{
+    return n1 - n2;
+}
+
+int mul(int n1, int n2)
+{
+    return n1 * n2;
+}
+
+int div(int n1, int n2)
+{
+    return n1 / n2;
+}
+
+static int init(void)
+{
+    pr_alert("initializing the module!");
+}
+module_init(calc_init);
+
+static void exit(void)
+{
+    pr_alert("exiting the module!");
+}
+module_init(calc_exit);
+```
+
+The module was implemented taking in mind the OO programming concept, as suggested in the [framework documentation](https://kunit.dev/third_party/stable_kernel/docs/usage.html), which is recommended in order to take the maximum of the KUnit's capabilities. A simple test module has the following format:
 
 ```c
 #include <test/test.h>
