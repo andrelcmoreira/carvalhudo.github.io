@@ -1,18 +1,18 @@
-#### KUnit: Introdução ao framework de testes unitários do kernel Linux - parte 1
+## KUnit: Introdução ao framework de testes unitários do kernel Linux - parte 1
 
 **Introdução**
 
 Em certa ocasião em 2020, trabalhei em um projeto que se tratava de um módulo de segurança que
 rodava em *kernel land*, escrito em C. Até aí nenhuma novidade. No entanto, ele tinha um requisito
 bem peculiar: deveria ser coberto por testes unitários. Nada demais para aplicações em *user land*,
-certo?Porém em *kernel land* a realidade é bem diferente. O Linux até dispõe de ferramentas de teste,
-como o *kselftest* (framework para testes funcionais) e entre outras, no entanto, ferramentas de
-teste unitário ainda era uma lacuna a ser preenchida. Porém, essa realidade já havia mudado em meados
-de 2019, sem que eu tivesse tomado conhecimento. Depois de alguma pesquisa, me deparei com um
-[artigo](https://sergioprado.org/como-o-kernel-linux-e-testado/) bem interessante do Sérgio Prado que
-falava sobre ferramentas de teste utilizadas no desenvolvimento do Linux e lá ele citava um framework
-de testes unitários relativamente novo na comunidade, chamado *KUnit*. Era exatamente o que eu
-precisava.
+certo?Porém quem já trabalhou em *kernel land*, sabe que lá a realidade é bem diferente. O
+Linux até dispõe de ferramentas de teste, como o *kselftest* (framework para testes funcionais) e
+entre outras, no entanto, ferramentas de teste unitário ainda era uma lacuna a ser preenchida. Porém,
+essa realidade já havia mudado em meados de 2019, sem que eu tivesse tomado conhecimento. Depois de
+alguma pesquisa, me deparei com um [artigo](https://sergioprado.org/como-o-kernel-linux-e-testado/)
+bem interessante do Sérgio Prado que falava sobre ferramentas de teste utilizadas no desenvolvimento
+do Linux e lá ele citava um framework de testes unitários relativamente novo na comunidade, chamado
+*KUnit*. Era exatamente o que eu precisava.
 
 Idealizado por Brendan Higgins, Engenheiro de software do Google, o *KUnit* é um framework
 de testes unitários fortemente baseado no GTest/GMock (também do Google) que - ainda que não
@@ -25,7 +25,7 @@ como o setup do ambiente e a criação de uma suíte de testes simples.
 **Preparando o ambiente**
 
 Um ponto importante a ser ressaltado é que o *KUnit* não é um framework standalone. Ele está
-embutido na árvore do Linux, logo precisamos clonar o repositório:
+embutido na árvore do Linux e logo precisamos clonar o repositório para utiliza-lo:
 
 ```bash
 $ git clone https://kunit.googlesource.com/linux --branch kunit/release/4.19/0.7
@@ -34,7 +34,9 @@ $ git clone https://kunit.googlesource.com/linux --branch kunit/release/4.19/0.7
 > **NOTA**: Neste artigo iremos utilizar como base a última release do KUnit que está disponível no
 > fork do Linux mantido pelo Google. Isso porque, até o momento que escrevo este artigo, o Linux
 > contém apenas o suporte básico do KUnit, logo algumas funcionalidades que iremos exemplificar
-> aqui ainda não foram mergeadas na árvore principal do projeto.
+> aqui ainda não foram mergeadas na árvore principal do projeto. E também vale lembrar que,
+> podem haver divergências entre nomes de estruturas de dados, assinatura de funções e de
+> configurações.
 
 Além do repositório, também iremos precisar instalar alguns pacotes adicionais para compilar o
 Linux para a arquitetura UML (User Mode Linux), a qual é a arquitetura base do KUnit:
@@ -43,48 +45,230 @@ Linux para a arquitetura UML (User Mode Linux), a qual é a arquitetura base do 
 $ sudo apt install bc flex bison python3 build-essential -y
 ```
 
-**Criando um módulo de teste**
+Uma vez com a árvore clonada e as dependências instaladas, podemos validar o nosso setup
+criando uma configuração contendo o módulo de testes de demonstração (que acompanha o KUnit) e
+executando os testes:
 
-Antes de nós começarmos a escrever um módulo de testes, obviamente nós devemos ter um módulo a ser
-testado. Vamos considerar [este módulo]() extremamente simples como exemplo. Ele contém apenas a
-implementação das operações básicas da matématicas, em outras palavras: uma simples calculadora em
-*kernel land*:
+```bash
+linux$ echo 'CONFIG_TEST=y' > kunitconfig # habilitando o KUnit na compilação
+linux$ echo 'CONFIG_EXAMPLE_TEST=y' >> kunitconfig # habilitando o módulo de testes demo na compilação
+linux$ ./tools/testing/kunit/kunit.py run
+Generating .config ...
+[18:22:52] Building KUnit Kernel ...
+[18:22:56] Starting KUnit Kernel ...
+[18:22:56] ==============================
+[18:22:57] [PASSED] example:example_simple_test
+[18:22:57] [PASSED] example:example_mock_test
+[18:22:57] ==============================
+[18:22:57] Testing complete. 2 tests run. 0 failed. 0 crashed.
+[18:22:57] Elapsed time: 6.065s total, 1.235s configuring, 4.664s building, 0.166s running.
+```
+
+**Estrutura de um módulo de teste**
+
+Antes de colocarmos a mão na massa, vamos analisar a estrutura básica de um módulo de teste
+tomando como exemplo o módulo de demonstração que executamos acima, que está disponível em
+```test/example_test.c```. Lá está definida a suíte de testes, bem como os *testcases* que
+a compõem. O *KUnit* define a suíte de testes através da estrutura ```struct test_module```,
+a qual uma vez instanciada deve ser registrada no core do framework através da macro
+```module_test```. Tal estrutura contém informações sobre a suíte, tais como o seu identificador,
+funções de *setup* e *teardown* e a lista de *testcases* que serão executados, conforme mostrado
+abaixo:
 
 ```c
-#include <linux/module.h>
-
-int add(int n1, int n2)
-{
-    return n1 + n2;
-}
-
-int sub(int n1, int n2)
-{
-    return n1 - n2;
-}
-
-int mul(int n1, int n2)
-{
-    return n1 * n2;
-}
-
-int div(int n1, int n2)
-{
-    return n1 / n2;
-}
-
-static int init(void)
-{
-    pr_alert("initializing the module!");
-}
-module_init(calc_init);
-
-static void exit(void)
-{
-    pr_alert("exiting the module!");
-}
-module_init(calc_exit);
+linux$ cat include/test/test.h
+...
+struct test_module {
+    const char name[256];            // nome da suíte de testes
+    int (*init)(struct test *test);  // ponteiro para função de inicialização da suíte
+    void (*exit)(struct test *test); // ponteiro para função de desinicialização da suíte
+    struct test_case *test_cases;    // ponteiro para os testcases que compõem a suíte
+};
+...
 ```
+
+Já o *testcase* é definido através da estrutura ```struct test_case```, que contém
+informações como o nome do testcase e a sua implementação propriamente dita, conforme
+mostrado abaixo:
+
+```c
+linux$ cat include/test/test.h
+...
+struct test_case {
+    void (*run_case)(struct test *test); // ponteiro para a função que implementa o testcase
+    const char name[256];                // nome do testcase
+    /* private: internal use only. */
+    bool success;
+};
+...
+```
+
+Na suíte que estamos tomando como exemplo, são definidos dois casos de teste: o
+```example_simple_test``` e o ```example_mock_test```. Por enquanto vamos nos ater apenas ao
+primeiro, que contém a seguinte implementação:
+
+```c
+static void example_simple_test(struct test *test)
+{
+    EXPECT_EQ(test, 1, 1);
+}
+```
+
+Os usuários do GTest/GMock vão se familiarizar com a macro ```EXPECT_EQ```, a qual aqui possue
+finalidade similar: verificar determinados comportamentos no nosso teste (no arquivo
+```include/test/test.h```, conseguimos ver a lista completa de macros disponíveis). Outro ponto
+importante que observamos aqui é a estrutura ```struct test```, recebida como parâmetro no teste.
+Ela representa a instância do teste em execução e é necessária para boa parte das operações de
+validação que iremos desempenhar.
+
+**Criando um módulo de teste**
+
+Agora que estamos mais familiarizados com o framework, mãos a obra! Porém, antes de nós começarmos a
+escrever um módulo de teste, temos que ter um módulo para testar. Vamos considerar
+[este módulo]() como exemplo, que se trata de uma calculadora em *kernel land*, que para fins de
+demonstrção implementa apenas as 4 operações básicas da matématica e as expõe para *user-land* via
+sysfs, conforme o uso exemplificado abaixo:
+
+```bash
+$ echo '8 + 10' > /sys/module/calc/operation
+$ cat /sys/module/calc/result
+result = 18
+$ echo '8 x 10' > /sys/module/calc/operation
+$ cat /sys/module/calc/result
+result = 80
+```
+
+Conforme mostrado acima, o módulo possue 2 operações distintas: o processamento da entrada e
+o retorno do resultado. Ao escrever a expressão númerica no arquivo *operation*, a operação é
+executada pelo módulo e o resultado é persistido internamente, podendo ser visualizado através da
+leitura no arquivo *result*. Do ponto de vista arquitetural, nosso projeto de demonstração é
+dividido em 3 componentes:
+
+- **calc.c**: contém a implementação da calculadora propriamente dita;
+- **calc_sysfs.c**: implementa a interface sysfs, que servirá como entrypoint para as aplicações
+  em *user land* consumirem o nosso módulo;
+- **calc_parser.c**: implementa o parse das expressões númericas a serem executadas pela
+  calculadora;
+
+~~Com base nesse breve resumo, podemos definir alguns casos de teste que irão compor a nossa suíte:~~
+
+**Compilando a suíte de testes**
+
+O primeiro passo para executarmos a suíte de testes é adiciona-la na compilação do kernel do KUnit.
+Para isso, devemos criaremos uma entrada para o nosso driver na árvore do linux e lá iremos clonar
+o código exemplo:
+
+```bash
+$ cd $LINUX_ROOT_DIR
+$ mkdir drivers/calc && cd $_
+$ git clone https://github.com/carvalhudo/blog-samples.git
+```
+
+Agora, precisamos adicionar a entrada relativa ao nosso módulo no arquivo *Kconfig* da pasta drivers
+e adicionar os fontes no *Makefile*. Para isso, os patches abaixo podem ser aplicados:
+
+```patch
+diff --git a/drivers/Makefile b/drivers/Makefile
+index 578f469f72fb..29edd3a2af17 100644
+--- a/drivers/Makefile
++++ b/drivers/Makefile
+@@ -186,3 +186,5 @@ obj-$(CONFIG_MULTIPLEXER)	+= mux/
+ obj-$(CONFIG_UNISYS_VISORBUS)	+= visorbus/
+ obj-$(CONFIG_SIOX)		+= siox/
+ obj-$(CONFIG_GNSS)		+= gnss/
++obj-$(CONFIG_CALC)		+= calc/
++obj-$(CONFIG_CALC_UNIT_TESTS)		+= calc/tests/
+```
+
+```patch
+diff --git a/drivers/Kconfig b/drivers/Kconfig
+index ab4d43923c4d..6be48c049016 100644
+--- a/drivers/Kconfig
++++ b/drivers/Kconfig
+@@ -219,4 +219,8 @@ source "drivers/siox/Kconfig"
+
+ source "drivers/slimbus/Kconfig"
+
++source "drivers/calc/Kconfig"
++
++source "drivers/calc/tests/Kconfig"
++
+ endmenu
+```
+
+**Configurando o KUnit**
+
+O KUnit requer uma configuração de kernel
+
+The KUnit requires some user configuration to work. Such configuration is located at **kunitconfig** file, placed at the Linux root directory. It contains some kernel configurations which will be used to configure the testing kernel during its compilation process, which is the first step of the KUnit test execution. For this example, the minimum configuration that must be supplied is shown below:
+
+```
+CONFIG_TEST=y # To enable KUnit
+CONFIG_CALC=y # To enable the module to be tested
+CONFIG_CALC_UNIT_TESTS=y # To enable the module test for calc module
+```
+
+### Running the tests
+
+The tests must be executed by running the **kunit.py** script:
+
+```bash
+$ cd linux
+$ ./tools/testing/kunit/kunit.py run
+```
+
+And the expected result must be something like that:
+
+```
+[11:27:21] Building KUnit Kernel ...
+[11:27:28] Starting KUnit Kernel ...
+[11:27:28] ==============================
+[11:27:28] [PASSED] dime:protected_app_with_lib_injection_test
+[11:27:28] [PASSED] dime:protected_app_with_cow_test
+[11:27:28] [PASSED] dime:protected_app_with_lib_injection_and_cow_test
+[11:27:28] [PASSED] dime:protected_app_with_no_injection_test
+[11:27:28] ==============================
+[11:27:28] Testing complete. 4 tests run. 0 failed. 0 crashed.
+[11:27:28] Elapsed time: 7.417s total, 0.001s configuring, 7.164s building, 0.252s running.
+```
+
+The logs produced during the suite execution can be visualized in the produced log file
+**test.log**, which can contain some useful information:
+
+```
+...
+kunit dime: initializing dime tests
+kunit dime: this is a log message from protected_app_with_lib_injection_test
+kunit dime: protected_app_with_lib_injection_test passed
+kunit dime: initializing dime tests
+kunit dime: this is a log message from protected_app_with_cow_test
+kunit dime: protected_app_with_cow_test passed
+kunit dime: initializing dime tests
+kunit dime: this is a log message from protected_app_with_lib_injection_and_cow_test
+kunit dime: protected_app_with_lib_injection_and_cow_test passed
+kunit dime: initializing dime tests
+kunit dime: this is a log message from protected_app_with_no_injection_test
+kunit dime: protected_app_with_no_injection_test passed
+kunit dime: initializing dime tests
+kunit dime: this is a log message from main_routine_test
+kunit dime: all tests passed
+...
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 The module was implemented taking in mind the OO programming concept, as suggested in the [framework documentation](https://kunit.dev/third_party/stable_kernel/docs/usage.html), which is recommended in order to take the maximum of the KUnit's capabilities. A simple test module has the following format:
 
